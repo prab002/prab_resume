@@ -1,6 +1,6 @@
 """Resume content for every role-targeted version.
 
-Facts come only from the original resume. Each version changes the headline,
+Facts come from the original resume and the live product sites. Each version changes the headline,
 summary, skill order and which bullets lead; the history itself is shared.
 """
 import os
@@ -26,6 +26,49 @@ INV = ("Invennico TechnoLabs", "Vadodara", "Jun 2024 – Sep 2025")
 INV_LEAD = ("Software Developer Team Lead", "Apr 2025 – Sep 2025")
 INV_JR = ("Junior Software Developer (MERN)", "Jun 2024 – Mar 2025")
 ADRIXUS = ("Adrixus Tech Studio", "Vadodara", "Software Developer Intern (MERN)", "Dec 2023 – Jun 2024")
+
+# Products built and launched independently. Descriptions come from each site's
+# own indexed pages; SoundCraft had none indexed, so it carries no description yet.
+PROJECTS = [
+    {
+        "name": "Traders Zone",
+        "url": "https://traders-zone.in/",
+        "label": "traders-zone.in",
+        "desc": (
+            "AI trading journal for crypto traders. Users upload their trades; it checks 12 trading habits against "
+            "that history and reports win rate, sample size and money made or lost per habit. Chat with your own "
+            "record in English, Hindi or Hinglish. Covers 1,529 Binance spot and perpetual markets without ever "
+            "asking for exchange API keys. Free, Pro and Max plans."
+        ),
+    },
+    {
+        "name": "Free Mac",
+        "url": "https://free-mac.online/",
+        "label": "free-mac.online",
+        "desc": (
+            "Mac disk cleaner that maps the whole drive, shows what is using space and clears it. Runs on "
+            "macOS 10.15+ on Apple Silicon and Intel; 11.4 MB download, no account needed. Free scan, with a paid "
+            "licence key that unlocks cleaning."
+        ),
+    },
+    {
+        "name": "AI Skill Up",
+        "url": "https://aiskillup.online/",
+        "label": "aiskillup.online",
+        "desc": "AI skills learning site with paid access delivered through licence keys, plus a technical blog.",
+    },
+    {
+        "name": "SoundCraft",
+        "url": "https://soundcraft.online/",
+        "label": "soundcraft.online",
+        "desc": "",
+    },
+]
+
+PROJECTS_SENTENCE = "I have also built and launched four products on my own, including the paid apps Traders Zone and Free Mac."
+
+# Versions where the projects sit right under the summary; the rest list them after experience.
+PROJECTS_FIRST = {"tech-lead", "senior-full-stack-engineer-remote", "senior-frontend-engineer-nextjs", "founding-engineer"}
 
 VERSIONS = [
     {

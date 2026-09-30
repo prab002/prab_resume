@@ -3,6 +3,10 @@
 Full-stack engineer (Next.js, React, Node.js) based in Bengaluru, India, open to remote roles.
 [LinkedIn](https://www.linkedin.com/in/prabhanjan-sharma-38a48a221/) | [GitHub](https://github.com/prab002)
 
+Products I built and launched: [Traders Zone](https://traders-zone.in/) (AI trading journal for crypto) |
+[Free Mac](https://free-mac.online/) (Mac disk cleaner) | [AI Skill Up](https://aiskillup.online/) |
+[SoundCraft](https://soundcraft.online/)
+
 ## Resume versions
 
 Each version is one A4 page, single column, with real selectable text so applicant tracking systems (ATS) can read it.

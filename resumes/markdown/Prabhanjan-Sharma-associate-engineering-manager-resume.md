@@ -8,7 +8,7 @@ mprabhanjan18@gmail.com | [linkedin.com/in/prabhanjan-sharma-38a48a221](https://
 
 ## Summary
 
-Engineer with close to 3 years of experience building web products, including a team lead role at Invennico and mentoring developers at Webknot. I run sprints, set code review and coding standards, and act as the technical contact for clients. Still hands-on in Next.js, Node.js and AWS; most recently redesigned a backend that now responds about 70% faster.
+Engineer with close to 3 years of experience building web products, including a team lead role at Invennico and mentoring developers at Webknot. I run sprints, set code review and coding standards, and act as the technical contact for clients. Still hands-on in Next.js, Node.js and AWS; most recently redesigned a backend that now responds about 70% faster. I have also built and launched four products on my own, including the paid apps Traders Zone and Free Mac.
 
 ## Skills
 
@@ -46,6 +46,13 @@ Engineer with close to 3 years of experience building web products, including a 
 
 - Built reusable React components with Styled Components and documented them in Storybook for the team.
 - Wrote REST APIs with Node.js, Express.js and MongoDB and connected them to frontend modules.
+
+## Projects
+
+- **Traders Zone** | [traders-zone.in](https://traders-zone.in/): AI trading journal for crypto traders. Users upload their trades; it checks 12 trading habits against that history and reports win rate, sample size and money made or lost per habit. Chat with your own record in English, Hindi or Hinglish. Covers 1,529 Binance spot and perpetual markets without ever asking for exchange API keys. Free, Pro and Max plans.
+- **Free Mac** | [free-mac.online](https://free-mac.online/): Mac disk cleaner that maps the whole drive, shows what is using space and clears it. Runs on macOS 10.15+ on Apple Silicon and Intel; 11.4 MB download, no account needed. Free scan, with a paid licence key that unlocks cleaning.
+- **AI Skill Up** | [aiskillup.online](https://aiskillup.online/): AI skills learning site with paid access delivered through licence keys, plus a technical blog.
+- **SoundCraft** | [soundcraft.online](https://soundcraft.online/)
 
 ## Education
 

@@ -14,7 +14,7 @@ from pypdf import PdfReader, PdfWriter
 
 sys.path.insert(0, str(Path(__file__).parent))
 from content import (ADRIXUS, CONTACT, EDUCATION, INV, INV_JR, INV_LEAD,  # noqa: E402
-                     VERSIONS, WEBKNOT)
+                     PROJECTS, PROJECTS_FIRST, PROJECTS_SENTENCE, VERSIONS, WEBKNOT)
 
 ROOT = Path(__file__).parent
 PDF_DIR = ROOT / "pdf"
@@ -37,6 +37,18 @@ def job_head(left, right):
     return f'<div class="row"><div>{left}</div><div class="date">{e(right)}</div></div>'
 
 
+def summary(v):
+    return f"{v['summary']} {PROJECTS_SENTENCE}"
+
+
+def projects_html():
+    items = []
+    for p in PROJECTS:
+        head = f'<b>{e(p["name"])}</b> | <a href="{p["url"]}">{e(p["label"])}</a>'
+        items.append(f"<li>{head}{': ' + e(p['desc']) if p['desc'] else ''}</li>")
+    return "<h2>Projects</h2><ul class=\"projects\">" + "".join(items) + "</ul>"
+
+
 def render_html(v, font_pt, margin_mm):
     c = CONTACT
     contact = " | ".join(part for part in [
@@ -54,7 +66,8 @@ def render_html(v, font_pt, margin_mm):
   <p class="meta">{contact}</p>
 </header>
 <h2>Summary</h2>
-<p>{e(v['summary'])}</p>
+<p>{e(summary(v))}</p>
+{projects_html() if v['slug'] in PROJECTS_FIRST else ''}
 <h2>Skills</h2>
 <ul class="skills">{skills}</ul>
 <h2>Experience</h2>
@@ -67,6 +80,7 @@ def render_html(v, font_pt, margin_mm):
 {bullets(v['junior'])}
 {job_head(f"<b>{e(ADRIXUS[0])}</b>, {e(ADRIXUS[1])} | <b>{e(ADRIXUS[2])}</b>", ADRIXUS[3])}
 {bullets(v['intern'])}
+{'' if v['slug'] in PROJECTS_FIRST else projects_html()}
 <h2>Education</h2>
 {job_head(f"<b>{e(EDUCATION[0])}</b>, {e(EDUCATION[1])}", EDUCATION[2])}
 <h2>Achievements</h2>
@@ -93,6 +107,7 @@ def render_html(v, font_pt, margin_mm):
   ul {{ margin: 1pt 0 3pt; padding-left: 13pt; }}
   li {{ margin: 0 0 1pt; }}
   ul.skills {{ list-style: none; padding-left: 0; }}
+  ul.projects li {{ margin-bottom: 2pt; }}
   .row {{ display: flex; justify-content: space-between; gap: 8pt; margin-top: 3pt; }}
   .date {{ white-space: nowrap; }}
 </style></head><body>{body}</body></html>"""
@@ -114,7 +129,7 @@ def set_metadata(pdf_path, v):
         "/Title": f"{CONTACT['name']} | {v['role']} Resume",
         "/Author": CONTACT["name"],
         "/Subject": v["headline"],
-        "/Keywords": v["keywords"],
+        "/Keywords": v["keywords"] + ", " + ", ".join(p["name"] for p in PROJECTS),
         "/Creator": "resumes/build.py",
     })
     with open(pdf_path, "wb") as fh:
@@ -139,8 +154,14 @@ def render_md(v):
         f"# {c['name']}", "", f"**{v['headline']}**", "", v["location"], "",
         " | ".join(x for x in [c["email"], c["phone"], f"[{c['linkedin_label']}]({c['linkedin']})",
                                f"[{c['github_label']}]({c['github']})"] if x),
-        "", "## Summary", "", v["summary"], "", "## Skills", "",
+        "", "## Summary", "", summary(v), "",
     ]
+    projects = ["## Projects", ""] + [
+        f"- **{p['name']}** | [{p['label']}]({p['url']})" + (f": {p['desc']}" if p["desc"] else "") for p in PROJECTS
+    ] + [""]
+    if v["slug"] in PROJECTS_FIRST:
+        lines += projects
+    lines += ["## Skills", ""]
     lines += [f"- **{k}:** {val}" for k, val in v["skills"]]
     lines += ["", "## Experience", "", f"**{WEBKNOT[0]}**, {WEBKNOT[1]} | **{WEBKNOT[2]}** | {WEBKNOT[3]}", ""]
     lines += [f"- {b}" for b in v["webknot"]]
@@ -150,7 +171,10 @@ def render_md(v):
     lines += [f"- {b}" for b in v["junior"]]
     lines += ["", f"**{ADRIXUS[0]}**, {ADRIXUS[1]} | **{ADRIXUS[2]}** | {ADRIXUS[3]}", ""]
     lines += [f"- {b}" for b in v["intern"]]
-    lines += ["", "## Education", "", f"**{EDUCATION[0]}**, {EDUCATION[1]} | {EDUCATION[2]}", "",
+    lines += [""]
+    if v["slug"] not in PROJECTS_FIRST:
+        lines += projects
+    lines += ["## Education", "", f"**{EDUCATION[0]}**, {EDUCATION[1]} | {EDUCATION[2]}", "",
               "## Achievements", ""]
     lines += [f"- {b}" for b in v["achievements"]]
     return "\n".join(lines) + "\n"

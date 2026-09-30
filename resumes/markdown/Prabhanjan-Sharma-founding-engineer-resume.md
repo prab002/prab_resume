@@ -8,7 +8,14 @@ mprabhanjan18@gmail.com | [linkedin.com/in/prabhanjan-sharma-38a48a221](https://
 
 ## Summary
 
-Full-stack engineer who has owned products end to end: talking to clients, designing the architecture, writing frontend and backend, setting up CI/CD and supporting the product after launch. Close to 3 years across Next.js, Node.js, event-driven backends and AWS, including leading a small team and shipping AI features with an ML team. Looking to join an early-stage product company as one of its first engineers.
+Full-stack engineer who has owned products end to end: talking to clients, designing the architecture, writing frontend and backend, setting up CI/CD and supporting the product after launch. Close to 3 years across Next.js, Node.js, event-driven backends and AWS, including leading a small team and shipping AI features with an ML team. Looking to join an early-stage product company as one of its first engineers. I have also built and launched four products on my own, including the paid apps Traders Zone and Free Mac.
+
+## Projects
+
+- **Traders Zone** | [traders-zone.in](https://traders-zone.in/): AI trading journal for crypto traders. Users upload their trades; it checks 12 trading habits against that history and reports win rate, sample size and money made or lost per habit. Chat with your own record in English, Hindi or Hinglish. Covers 1,529 Binance spot and perpetual markets without ever asking for exchange API keys. Free, Pro and Max plans.
+- **Free Mac** | [free-mac.online](https://free-mac.online/): Mac disk cleaner that maps the whole drive, shows what is using space and clears it. Runs on macOS 10.15+ on Apple Silicon and Intel; 11.4 MB download, no account needed. Free scan, with a paid licence key that unlocks cleaning.
+- **AI Skill Up** | [aiskillup.online](https://aiskillup.online/): AI skills learning site with paid access delivered through licence keys, plus a technical blog.
+- **SoundCraft** | [soundcraft.online](https://soundcraft.online/)
 
 ## Skills
 
