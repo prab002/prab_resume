@@ -65,6 +65,18 @@ INDIAN_DESC = re.compile(r"pvt\.? ?ltd|private limited|headquartered in (india|b
                          r"chennai|mumbai|ahmedabad|indore|jaipur|kochi)|\bist (shift|hours|time ?zone)|"
                          r"\b(lpa|ctc)\b|₹", re.I)
 
+# "Remote" titles often hide a region rule in the description. These phrases drop a job unless the description
+# also says it is open worldwide.
+DESC_RESTRICTED = re.compile(
+    r"anywhere in (europe|the (us|u\.s\.|united states|uk|eu|americas))|(us|u\.s\.) east coast|"
+    r"must (be|live|reside)\w* (based |located )?in (the )?(us|u\.s\.|usa|united states|uk|europe|eu|canada|emea|latam)|"
+    r"(authori[sz]ed|eligible|legally able) to work in (the )?(us|u\.s\.|usa|united states|uk|eu|canada)|"
+    r"(us|u\.s\.|usa)[- ]only|(uk|eu|emea|europe)[- ]only|central european (time|timezone)|\bcet\b|"
+    r"\b(pst|est|et|pt) (hours|time ?zone)|within (the )?(us|united states|europe|emea)|"
+    r"remote (within|in) (the )?(us|united states|uk|europe|eu|canada|emea|latam)", re.I)
+# Only explicit statements rescue a job; company slogans like "talent, not location" sit next to region rules.
+DESC_WORLDWIDE = re.compile(r"anywhere in the world|work from anywhere|from any country|any time ?zone", re.I)
+
 # Salary floor from preferences.md: Rs 20 LPA. Jobs listing a maximum below it are dropped; unlisted pay is kept.
 FLOOR_USD = 23_000
 TO_USD = {"USD": 1, "EUR": 1.08, "GBP": 1.27, "CAD": 0.73, "AUD": 0.66, "INR": 1 / 88}
@@ -317,6 +329,9 @@ def main():
             continue
         if not location_ok(j["location"], args.allow_apac):
             drop("not worldwide")
+            continue
+        if DESC_RESTRICTED.search(j["desc"]) and not DESC_WORLDWIDE.search(j["desc"]):
+            drop("region rule in description")
             continue
         if indian_company(j):
             drop("Indian company")
