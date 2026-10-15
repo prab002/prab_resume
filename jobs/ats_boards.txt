@@ -210,3 +210,7 @@ lever safe
 lever tinybird
 lever toptal
 lever zilliz
+recruitee tether
+recruitee holepunch
+recruitee bitfinex
+recruitee bunq

@@ -43,7 +43,7 @@ BOARDS_FILE = REPO / "jobs" / "ats_boards.txt"
 
 QUERIES = ["full stack", "next.js", "react", "node.js", "frontend engineer", "product engineer", "founding engineer"]
 WWR_FEEDS = ["remote-full-stack-programming-jobs", "remote-front-end-programming-jobs",
-             "remote-back-end-programming-jobs"]
+             "remote-back-end-programming-jobs", "remote-programming-jobs"]
 
 # Titles worth reading. Anything matching SKIP_TITLE is dropped even if it matches here.
 WANT_TITLE = re.compile(r"full[ -]?stack|front[ -]?end|react|next\.?js|node|javascript|typescript|software engineer|"
@@ -176,7 +176,24 @@ def from_lever(slug):
                   source="Lever", ats="Lever", board=True)
 
 
-BOARD_READERS = {"ashby": from_ashby, "greenhouse": from_greenhouse, "lever": from_lever}
+def from_recruitee(slug):
+    for j in fetch_json(f"https://{slug}.recruitee.com/api/offers/").get("offers", []):
+        if j.get("status") != "published":
+            continue
+        # Recruitee marks remote roles with flags; the city/country is only the legal entity's office.
+        if j.get("remote") and not j.get("hybrid") and not j.get("on_site"):
+            loc = "Worldwide" if re.search(r"worldwide|anywhere|global", j["title"], re.I) else "Remote"
+        else:
+            loc = j.get("location") or j.get("country") or ""
+        yield job(title=j["title"], company=j.get("company_name") or slug.title(),
+                  url=j.get("careers_url") or j.get("careers_apply_url"),
+                  posted=utc(datetime.strptime(j["published_at"], "%Y-%m-%d %H:%M:%S %Z")), location=loc,
+                  desc=text((j.get("description") or "") + (j.get("requirements") or "")),
+                  source="Recruitee", ats="Recruitee", board=True)
+
+
+BOARD_READERS = {"ashby": from_ashby, "greenhouse": from_greenhouse, "lever": from_lever,
+                 "recruitee": from_recruitee}
 
 
 def from_wwr():
@@ -191,7 +208,7 @@ def from_wwr():
 
 
 def from_jobicy():
-    d = fetch_json("https://jobicy.com/api/v2/remote-jobs?count=100&geo=anywhere&industry=dev")
+    d = fetch_json("https://jobicy.com/api/v2/remote-jobs?count=100&geo=anywhere")
     for j in d.get("jobs", []):
         yield job(title=html.unescape(j["jobTitle"]), company=j["companyName"], url=j["url"],
                   posted=utc(datetime.fromisoformat(j["pubDate"])), location=j.get("jobGeo") or "",
@@ -219,6 +236,17 @@ def from_himalayas():
                       **salary(j.get("minSalary"), j.get("maxSalary"), j.get("currency") or "USD"))
 
 
+def from_himalayas_latest():
+    for offset in range(0, 200, 20):
+        for j in fetch_json(f"https://himalayas.app/jobs/api?limit=20&offset={offset}").get("jobs", []):
+            if j.get("locationRestrictions"):
+                continue
+            yield job(title=j["title"], company=j["companyName"].strip(), url=j.get("applicationLink") or j["guid"],
+                      posted=datetime.fromtimestamp(int(j["pubDate"]), timezone.utc), location="Worldwide",
+                      desc=text(j.get("description")), source="Himalayas",
+                      **salary(j.get("minSalary"), j.get("maxSalary"), j.get("currency") or "USD"))
+
+
 def from_remotive():
     for q in QUERIES:
         qs = urllib.parse.urlencode({"search": q, "limit": 50})
@@ -237,7 +265,8 @@ def from_remoteok():
                   **salary(j.get("salary_min"), j.get("salary_max"), "USD"))
 
 
-SOURCES = [from_boards, from_wwr, from_jobicy, from_workingnomads, from_himalayas, from_remotive, from_remoteok]
+SOURCES = [from_boards, from_wwr, from_jobicy, from_workingnomads, from_himalayas, from_himalayas_latest,
+           from_remotive, from_remoteok]
 
 
 # ---- filtering and ranking -----------------------------------------------------------------------------------
