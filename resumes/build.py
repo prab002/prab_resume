@@ -1,7 +1,8 @@
 """Build one-page, ATS-friendly PDF and Markdown resumes for every version.
 
 Usage: RESUME_PHONE="+91 ..." python3 resumes/build.py   (omit RESUME_PHONE for the public copies)
-Needs Chromium (CHROME env var or the Playwright copy under /opt/pw-browsers) and pypdf.
+Needs Chrome or Chromium (CHROME env var, the macOS app, or the Playwright copy under /opt/pw-browsers) and pypdf.
+The render and build functions are also used by tailor.py for one-off, job-specific versions.
 """
 import html
 import os
@@ -19,7 +20,12 @@ from content import (ADRIXUS, CONTACT, EDUCATION, INV, INV_JR, INV_LEAD,  # noqa
 ROOT = Path(__file__).parent
 PDF_DIR = ROOT / "pdf"
 MD_DIR = ROOT / "markdown"
-CHROME = os.environ.get("CHROME", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
+CHROME_CANDIDATES = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+]
+CHROME = os.environ.get("CHROME") or next((c for c in CHROME_CANDIDATES if Path(c).exists()), CHROME_CANDIDATES[-1])
 FILE_PREFIX = "Prabhanjan-Sharma"
 
 e = html.escape
@@ -49,6 +55,10 @@ def projects_html():
     return "<h2>Projects</h2><ul class=\"projects\">" + "".join(items) + "</ul>"
 
 
+def projects_first(v):
+    return v.get("projects_first", v["slug"] in PROJECTS_FIRST)
+
+
 def render_html(v, font_pt, margin_mm):
     c = CONTACT
     contact = " | ".join(part for part in [
@@ -67,7 +77,7 @@ def render_html(v, font_pt, margin_mm):
 </header>
 <h2>Summary</h2>
 <p>{e(summary(v))}</p>
-{projects_html() if v['slug'] in PROJECTS_FIRST else ''}
+{projects_html() if projects_first(v) else ''}
 <h2>Skills</h2>
 <ul class="skills">{skills}</ul>
 <h2>Experience</h2>
@@ -80,7 +90,7 @@ def render_html(v, font_pt, margin_mm):
 {bullets(v['junior'])}
 {job_head(f"<b>{e(ADRIXUS[0])}</b>, {e(ADRIXUS[1])} | <b>{e(ADRIXUS[2])}</b>", ADRIXUS[3])}
 {bullets(v['intern'])}
-{'' if v['slug'] in PROJECTS_FIRST else projects_html()}
+{'' if projects_first(v) else projects_html()}
 <h2>Education</h2>
 {job_head(f"<b>{e(EDUCATION[0])}</b>, {e(EDUCATION[1])}", EDUCATION[2])}
 <h2>Achievements</h2>
@@ -136,8 +146,8 @@ def set_metadata(pdf_path, v):
         writer.write(fh)
 
 
-def build_pdf(v):
-    out = PDF_DIR / f"{file_stem(v)}.pdf"
+def build_pdf(v, out_dir=PDF_DIR):
+    out = Path(out_dir) / f"{file_stem(v)}.pdf"
     # Shrink the type in small steps until the resume fits on one page.
     for font_pt, margin in [(10, 12), (9.75, 11), (9.5, 10), (9.25, 10), (9, 9)]:
         print_pdf(render_html(v, font_pt, margin), out)
@@ -159,7 +169,7 @@ def render_md(v):
     projects = ["## Projects", ""] + [
         f"- **{p['name']}** | [{p['label']}]({p['url']})" + (f": {p['desc']}" if p["desc"] else "") for p in PROJECTS
     ] + [""]
-    if v["slug"] in PROJECTS_FIRST:
+    if projects_first(v):
         lines += projects
     lines += ["## Skills", ""]
     lines += [f"- **{k}:** {val}" for k, val in v["skills"]]
@@ -172,7 +182,7 @@ def render_md(v):
     lines += ["", f"**{ADRIXUS[0]}**, {ADRIXUS[1]} | **{ADRIXUS[2]}** | {ADRIXUS[3]}", ""]
     lines += [f"- {b}" for b in v["intern"]]
     lines += [""]
-    if v["slug"] not in PROJECTS_FIRST:
+    if not projects_first(v):
         lines += projects
     lines += ["## Education", "", f"**{EDUCATION[0]}**, {EDUCATION[1]} | {EDUCATION[2]}", "",
               "## Achievements", ""]

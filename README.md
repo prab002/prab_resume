@@ -27,6 +27,30 @@ The PDF title, subject and keywords are set to the target role.
   filtered to the last 24 hours, each mapped to a resume version, plus an application tracker.
 - [jobs/leads-2026-09-30.md](jobs/leads-2026-09-30.md): specific openings found on 30 Sep 2026.
 
+## Applying with Claude Code (remote jobs outside India)
+
+Two project skills in [.claude/skills](.claude/skills), adapted from
+[proficiently-claude-skills](https://github.com/proficientlyjobs/proficiently-claude-skills) (MIT):
+
+- `/find-jobs`: runs [jobs/fetch_remote.py](jobs/fetch_remote.py), which pulls fresh listings from Himalayas,
+  Remotive and RemoteOK, keeps roles open to candidates in India, APAC or worldwide (India-only listings are
+  dropped), scores them against this resume and suggests which version to start from.
+- `/apply-job <url>` (or `/apply-job next`): reads the posting, checks fit, writes a tailored version, builds a
+  one-page PDF with [resumes/tailor.py](resumes/tailor.py), fills the application in Chrome, uploads the PDF and
+  submits only after you say yes. Then it logs the application.
+
+`tailor.py` refuses to build a resume that lists a skill not found in `content.py` or your profile, so tailoring
+cannot slip in tools you have not used.
+
+Private data (form answers, phone, salary, work history notes, every tailored resume and the tracker) lives in
+`~/.proficiently/`, outside this public repo. Set `PROFICIENTLY_DIR` to move it.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install pypdf
+.venv/bin/python jobs/fetch_remote.py --days 3
+RESUME_PHONE="+91 ..." .venv/bin/python resumes/tailor.py ~/.proficiently/jobs/<company>-<date>/tailored.json
+```
+
 ## Editing and rebuilding
 
 All wording lives in [resumes/content.py](resumes/content.py). Change it there, then rebuild every PDF and Markdown file:
