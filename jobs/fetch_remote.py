@@ -63,6 +63,9 @@ WORLDWIDE = re.compile(r"anywhere|worldwide|world ?wide|global|international|all
 APAC = re.compile(r"\bapac\b|asia|india", re.I)
 # Dubai / UAE roles are wanted in any work mode (remote, hybrid or on-site): he will relocate with a visa.
 DUBAI = re.compile(r"dubai|united arab emirates|\buae\b|abu dhabi|sharjah", re.I)
+# --city mode: a home-city search (any work mode) plus remote roles inside India. Indian employers are fine here.
+CITIES = {"bengaluru": r"bengaluru|bangalore|\bblr\b"}
+INDIA_REMOTE = re.compile(r"remote.{0,12}india|india.{0,12}remote|^\s*india\s*$", re.I)
 # Signs the employer itself is an Indian company (the user wants companies outside India).
 INDIAN_NAME = re.compile(r"pvt\.?|private limited|\bllp\b|india\b|technolog(y|ies) solutions", re.I)
 INDIAN_DESC = re.compile(r"pvt\.? ?ltd|private limited|headquartered in (india|bangalore|bengaluru|mumbai|pune|"
@@ -400,10 +403,11 @@ def already_seen():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--hours", type=float, default=24,
+    ap.add_argument("--hours", type=float, default=24,  # e.g. --hours 14 for the Bengaluru 6-14h pass
                     help="only keep jobs posted within this many hours (results list <=6h first, then <=24h)")
     ap.add_argument("--allow-apac", action="store_true", help="also accept APAC / Asia / India-remote roles")
     ap.add_argument("--no-dubai", action="store_true", help="leave out Dubai / UAE roles (included by default)")
+    ap.add_argument("--city", choices=sorted(CITIES), help="only jobs in this Indian city (any work mode) or remote in India")
     ap.add_argument("--min-match", type=int, default=50, help="minimum %% of the job's tech keywords he has")
     ap.add_argument("--max-years", type=int, default=99, help="skip jobs asking for more years (off by default)")
     args = ap.parse_args()
@@ -443,15 +447,22 @@ def main():
         if not WANT_TITLE.search(j["title"]) or SKIP_TITLE.search(j["title"]):
             drop("title")
             continue
-        dubai = not args.no_dubai and in_dubai(j["location"])
-        j["region"] = "Dubai/UAE" if dubai else "Worldwide"
-        if not dubai and not location_ok(j["location"], args.allow_apac):
-            drop("not worldwide or Dubai")
-            continue
-        if not dubai and DESC_RESTRICTED.search(j["desc"]) and not DESC_WORLDWIDE.search(j["desc"]):
-            drop("region rule in description")
-            continue
-        if indian_company(j):
+        if args.city:
+            city_rx = re.compile(CITIES[args.city], re.I)
+            if not (city_rx.search(j["location"]) or INDIA_REMOTE.search(j["location"])):
+                drop(f"not {args.city} or India-remote")
+                continue
+            j["region"] = args.city.title() if city_rx.search(j["location"]) else "India remote"
+        else:
+            dubai = not args.no_dubai and in_dubai(j["location"])
+            j["region"] = "Dubai/UAE" if dubai else "Worldwide"
+            if not dubai and not location_ok(j["location"], args.allow_apac):
+                drop("not worldwide or Dubai")
+                continue
+            if not dubai and DESC_RESTRICTED.search(j["desc"]) and not DESC_WORLDWIDE.search(j["desc"]):
+                drop("region rule in description")
+                continue
+        if not args.city and indian_company(j):
             drop("Indian company")
             continue
         if j["max_usd"] is not None and j["max_usd"] < FLOOR_USD:
@@ -467,11 +478,12 @@ def main():
             continue
         age_h = (now - j["posted"]).total_seconds() / 3600
         j.update(match=pct, have=have, gaps=gaps, years=need, base=base_version(j["title"]),
-                 pay=pay_step(j["max_usd"]), fresh="<=6h" if age_h <= 6 else "<=24h" if age_h <= 24 else f"{age_h / 24:.0f}d")
+                 pay=pay_step(j["max_usd"]),
+                 fresh="<=6h" if age_h <= 6 else "6-14h" if age_h <= 14 else "<=24h" if age_h <= 24 else f"{age_h / 24:.0f}d")
         picked.append(j)
     # Order the user asked for: pay step first (40+ and unlisted, then 15-40), then freshness, then keyword match.
     pay_rank = {"40+ LPA": 0, "unlisted": 0, "15-40 LPA": 1}
-    fresh_rank = {"<=6h": 0, "<=24h": 1}
+    fresh_rank = {"<=6h": 0, "6-14h": 1, "<=24h": 2}
     picked.sort(key=lambda j: (pay_rank[j["pay"]], fresh_rank.get(j["fresh"], 2), -j["match"]))
 
     per_source = {}

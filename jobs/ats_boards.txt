@@ -242,3 +242,26 @@ workable salla
 workable lucidya
 workable tamatem
 lever klivvr
+
+# Bengaluru / India employers (added 2026-10-15; used with --city bengaluru)
+lever cred
+lever meesho
+greenhouse groww
+ashby atlan
+lever eternal
+greenhouse slice
+greenhouse druva
+greenhouse rubrik
+greenhouse observeai
+ashby sarvam
+lever paytm
+ashby navi
+ashby ditto
+lever pocketfm
+lever mindtickle
+lever fampay
+lever hevodata
+ashby spotdraft
+greenhouse truecaller
+greenhouse glance
+greenhouse inmobi
