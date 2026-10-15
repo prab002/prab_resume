@@ -1,0 +1,20 @@
+# Companies whose own job boards fetch_remote.py reads (one per line: ats slug).
+# ats is ashby, greenhouse or lever; slug is the company part of the board URL, e.g.
+# jobs.ashbyhq.com/<slug>, job-boards.greenhouse.io/<slug>, jobs.lever.co/<slug>.
+# These forms need no account, so /apply-job can fill them end to end. Add companies as you find them.
+# Checked live on 2026-10-15; each has had remote engineering roles open to India, APAC or worldwide.
+ashby railway
+ashby supabase
+ashby posthog
+ashby elevenlabs
+ashby notion
+greenhouse canonical
+greenhouse gitlab
+greenhouse mozilla
+greenhouse coinbase
+greenhouse turing
+greenhouse wikimedia
+greenhouse consensys
+greenhouse okx
+greenhouse elastic
+lever binance

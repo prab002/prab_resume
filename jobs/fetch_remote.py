@@ -5,8 +5,10 @@ Usage:
   python3 jobs/fetch_remote.py --days 2 --query "next.js" --query "founding engineer"
   python3 jobs/fetch_remote.py --include-india-only # also keep listings restricted to India
 
-Sources are public JSON APIs that need no login: Himalayas (filtered to jobs open to India), Remotive and
-RemoteOK (filtered to Worldwide, Anywhere, APAC, Asia or India). Writes ~/.proficiently/leads/leads-<date>.md,
+Sources are public JSON APIs that need no login: employer job boards on Ashby, Greenhouse and Lever (companies
+listed in jobs/ats_boards.txt; their forms need no account, so these are the easiest to apply to), Himalayas
+(filtered to jobs open to India), Remotive and RemoteOK (filtered to Worldwide, Anywhere, APAC, Asia or India).
+Employer boards keep standing roles open for months, so --days does not apply to them. Writes ~/.proficiently/leads/leads-<date>.md,
 skipping jobs already listed in an earlier leads file or in ~/.proficiently/job-history.md.
 """
 import argparse
@@ -36,6 +38,10 @@ SKIP_TITLE = re.compile(r"\.net|\bjava\b|php|ruby|rails|laravel|wordpress|shopif
                         r"support|intern\b|principal|staff|director|vp\b|head of|angular|vue|unity|game|embedded|"
                         r"blockchain|solidity|web3", re.I)
 OPEN_TO_INDIA = re.compile(r"worldwide|anywhere|global|apac|asia|india|remote$|^$", re.I)
+# Employer boards: a location must name India/APAC/Asia/worldwide, or be a bare "Remote" with no country.
+BOARD_OPEN = re.compile(r"india|apac|asia|anywhere|worldwide|global", re.I)
+BOARD_BARE_REMOTE = re.compile(r"^\s*(fully\s+)?remote\s*$|^\s*home based\s*$", re.I)
+BOARDS_FILE = REPO / "jobs" / "ats_boards.txt"
 
 # What the resume can back up, with weights. Matching is on the job description text.
 STRENGTHS = {
@@ -101,6 +107,68 @@ def from_remoteok():
         }
 
 
+def board_open(locations):
+    """True if any listed location of an employer-board job admits someone living in India."""
+    return any(BOARD_OPEN.search(loc) or BOARD_BARE_REMOTE.search(loc) for loc in locations if loc)
+
+
+def from_boards():
+    for line in BOARDS_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.split("#")[0].strip()
+        if not line:
+            continue
+        ats, slug = line.split()
+        try:
+            yield from BOARD_READERS[ats](slug)
+        except Exception as exc:  # one company failing should not stop the run
+            print(f"warning: {ats} {slug}: {exc}")
+
+
+def from_ashby(slug):
+    for j in fetch_json(f"https://api.ashbyhq.com/posting-api/job-board/{slug}").get("jobs", []):
+        locs = [j.get("location") or ""] + [x.get("location", "") for x in j.get("secondaryLocations") or []]
+        if not j.get("isListed", True) or not board_open(locs):
+            continue
+        yield {
+            "title": j["title"], "company": slug.title(), "url": j["jobUrl"],
+            "posted": datetime.fromisoformat(j["publishedAt"]), "location": ", ".join(x for x in locs if x),
+            "india_only": False, "salary": "", "max_usd": None, "desc": j.get("descriptionPlain") or "",
+            "source": "Ashby", "board": True,
+        }
+
+
+def from_greenhouse(slug):
+    for j in fetch_json(f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true").get("jobs", []):
+        # Only the job's own location: "offices" holds region groupings (e.g. "Global") that say nothing here.
+        locs = [(j.get("location") or {}).get("name", "")]
+        if not board_open(locs):
+            continue
+        yield {
+            "title": j["title"], "company": j.get("company_name") or slug.title(), "url": j["absolute_url"],
+            "posted": datetime.fromisoformat(j.get("first_published") or j["updated_at"]),
+            "location": locs[0], "india_only": False, "salary": "", "max_usd": None,
+            "desc": text(html.unescape(j.get("content") or "")), "source": "Greenhouse", "board": True,
+        }
+
+
+def from_lever(slug):
+    for j in fetch_json(f"https://api.lever.co/v0/postings/{slug}?mode=json"):
+        cats = j.get("categories") or {}
+        locs = [cats.get("location", "")] + list(cats.get("allLocations") or [])
+        if not board_open(locs) and j.get("country") != "IN":
+            continue
+        yield {
+            "title": j["text"], "company": slug.title(), "url": j["hostedUrl"],
+            "posted": datetime.fromtimestamp(int(j["createdAt"]) / 1000, timezone.utc),
+            "location": ", ".join(dict.fromkeys(x for x in locs if x)), "india_only": False, "salary": "",
+            "max_usd": None, "desc": (j.get("descriptionPlain") or "") + " " + (j.get("additionalPlain") or ""),
+            "source": "Lever", "board": True,
+        }
+
+
+BOARD_READERS = {"ashby": from_ashby, "greenhouse": from_greenhouse, "lever": from_lever}
+
+
 def salary(lo, hi, cur):
     lo, hi = int(float(lo or 0)), int(float(hi or 0))
     if not (lo or hi):
@@ -161,6 +229,7 @@ def main():
             except Exception as exc:  # one source failing should not stop the run
                 errors.append(f"{src.__name__}({q}): {exc}")
             time.sleep(0.5)
+    jobs.extend(from_boards())
     try:
         jobs.extend(from_remoteok())
     except Exception as exc:
@@ -173,7 +242,7 @@ def main():
         if key in keys or j["url"] in seen:
             continue
         keys.add(key)
-        if (now - j["posted"]).days > args.days:
+        if not j.get("board") and (now - j["posted"]).days > args.days:
             continue
         if not WANT_TITLE.search(j["title"]) or SKIP_TITLE.search(j["title"]):
             continue
