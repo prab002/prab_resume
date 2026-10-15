@@ -39,6 +39,10 @@ Two project skills in [.claude/skills](.claude/skills), adapted from
   one-page PDF with [resumes/tailor.py](resumes/tailor.py), fills the application in Chrome, uploads the PDF and
   submits only after you say yes. Then it logs the application.
 
+- [jobs/tracker.py](jobs/tracker.py): rebuilds `~/.proficiently/applications.xlsx`, with every application, the
+  full job description, the exact resume sent (text plus a link to the PDF), salary asked, and an Insights sheet
+  showing reply rates by base resume, source, fit and keyword. Edit Status in Excel as companies reply.
+
 `tailor.py` refuses to build a resume that lists a skill not found in `content.py` or your profile, so tailoring
 cannot slip in tools you have not used.
 
@@ -46,7 +50,7 @@ Private data (form answers, phone, salary, work history notes, every tailored re
 `~/.proficiently/`, outside this public repo. Set `PROFICIENTLY_DIR` to move it.
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install pypdf
+python3 -m venv .venv && .venv/bin/pip install pypdf openpyxl
 .venv/bin/python jobs/fetch_remote.py --days 3
 RESUME_PHONE="+91 ..." .venv/bin/python resumes/tailor.py ~/.proficiently/jobs/<company>-<date>/tailored.json
 ```

@@ -16,6 +16,10 @@ argument-hint: "optional search terms, e.g. 'next.js founding'"
    It writes `~/.proficiently/leads/leads-<date>.md`, already filtered to jobs open to India/APAC/worldwide,
    skipping India-only listings and anything seen before. Use `--include-india-only` only if the user asks.
 
+   Before choosing queries, open the Insights sheet of `~/.proficiently/applications.xlsx` (via openpyxl) once
+   there are 10+ applications: lean searches toward the base resumes, sources and keywords with the best reply
+   rate, and away from ones with zero replies after 5+ applications.
+
 2. Read the leads file. For the top ~8 rows, open the link (WebFetch) and drop any that fail
    `~/.proficiently/preferences.md` dealbreakers (work authorization, onsite, wrong stack, 7+ years).
    Aggregators sometimes mislabel location; the posting text wins.

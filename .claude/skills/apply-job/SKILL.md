@@ -16,7 +16,10 @@ is built by this repo's PDF builder, so it is a one-page ATS-readable PDF, not M
 - Private data, `DATA = ~/.proficiently/` (or `$PROFICIENTLY_DIR`). Never copy anything from here into the repo.
   - `profile.md`: work history and confirmed skills. `preferences.md`: what counts as a good job.
   - `application-data.md`: form answers. `job-history.md`: tracker. `leads/`: output of fetch_remote.py.
-  - `jobs/<company-slug>-<YYYY-MM-DD>/`: one folder per application.
+  - `jobs/<company-slug>-<YYYY-MM-DD>/`: one folder per application (`meta.json`, `posting-full.txt`,
+    `posting.md`, `tailored.json`, `resume.md`, the PDF, optional `cover-letter.md`, `applied.md`).
+  - `applications.xlsx`: tracker built by `jobs/tracker.py` from the job folders. Never edit it with code;
+    rebuild it. The user edits Status / Response date / Stage reached / Notes in Excel and rebuilds keep them.
 - `references/ats-patterns.md`: how Greenhouse, Lever and Workday forms behave under browser automation.
 
 ## Rules that override speed
@@ -44,7 +47,9 @@ Fetch the page (WebFetch first; Claude in Chrome if it needs JavaScript or the u
 (Himalayas, Remotive, RemoteOK) usually link onward to the employer's ATS page; follow through to the real
 application URL and use that from here on.
 
-Save `DATA/jobs/<company-slug>-<date>/posting.md` with: URL, title, company, location rules, salary, must-haves,
+Save the description exactly as published (plain text, no summarising) to `posting-full.txt` in the job
+folder; the tracker stores it so later we can see which kinds of postings replied. Then save
+`DATA/jobs/<company-slug>-<date>/posting.md` with: URL, title, company, location rules, salary, must-haves,
 nice-to-haves, keywords (tools, methods, domain words), and anything about timezone or work authorization.
 
 ### 3. Check fit (stop early if it is a bad bet)
@@ -54,6 +59,13 @@ it needs US/UK/EU work authorization, it is onsite or hybrid, the main stack is 
 it asks for far more years than he has (close to 3). Otherwise list:
 - requirement -> strongest real evidence from content.py/profile.md
 - gaps (no evidence), stated plainly
+
+Write `meta.json` in the folder: `company, role, url` (the real application URL once known), `source`
+(Himalayas, Remotive, RemoteOK, LinkedIn, Wellfound, Referral, ...), `ats`, `location`, `salary_listed`,
+`salary_asked` (empty until the form is filled), `fit` (High/Medium/Low), `score` (from the leads file, if any),
+`keywords` (comma-separated posting keywords), `gaps` (list), `status: "Tailored"`, `applied_date: ""`,
+`response_date: ""`, `stage: ""`, `notes`. If you stop at the fit check, still write it with `status: "Skipped"`
+and the reason in `notes`, so the tracker learns from rejected leads too.
 
 ### 4. Tailor
 
@@ -97,6 +109,9 @@ URL and follow `references/ats-patterns.md`.
 
 1. Scan every field first without filling.
 2. Map each field to `DATA/application-data.md` (then Custom Answers, then sensible defaults).
+   Salary questions: use the matching "Expected compensation" line from application-data.md (USD range on
+   USD forms, INR range on INR forms, the single number when only one is allowed, hourly for contracts).
+   Never write the floor, and never quote below it. Record what you entered as `salary_asked` in meta.json.
 3. Show the user ONE summary: auto-filled values, proposed answers to custom questions, and anything that needs
    them (TODO values, salary, essay questions). Wait for their answers. Save new answers to Custom Answers.
 4. Fill everything. Attach the resume with `file_upload` (the tailored PDF in the job folder) and the cover
@@ -107,7 +122,14 @@ URL and follow `references/ats-patterns.md`.
 
 Only after the user says yes: click Submit, confirm the success page, then:
 - write `DATA/jobs/<folder>/applied.md` (date, URL, ATS, status, answers that were unusual)
+- update the tracker: `.venv/bin/python jobs/tracker.py --set <folder> status=Applied applied_date=<YYYY-MM-DD> ats=<ats> salary_asked="<what was entered>"`
 - add a row to `DATA/job-history.md` with status `Applied`
 - tell the user what was sent, and offer the next lead (`/apply-job next`)
 
-If they say no, log status `Tailored` instead so the work is not lost.
+If they say no, run `jobs/tracker.py --set <folder> status=Tailored` instead so the work is not lost.
+
+### Later: replies
+
+When the user says a company replied, rejected or scheduled an interview, run
+`jobs/tracker.py --set <folder> status=<Screening|Interview|Offer|Rejected> response_date=<YYYY-MM-DD> stage="<what happened>"`.
+After about 21 days with no reply, mark it `No reply`.

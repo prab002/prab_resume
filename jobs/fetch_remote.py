@@ -45,6 +45,10 @@ STRENGTHS = {
 }
 GAPS = {r"typescript": "TypeScript", r"\bpython\b": "Python", r"kubernetes|\bk8s\b": "Kubernetes"}
 
+# Salary floor from preferences.md: Rs 20 LPA. Jobs listing a maximum below it are dropped; unlisted pay is kept.
+FLOOR_USD = 23_000
+TO_USD = {"USD": 1, "EUR": 1.08, "GBP": 1.27, "CAD": 0.73, "AUD": 0.66, "INR": 1 / 88}
+
 
 def fetch_json(url):
     req = urllib.request.Request(url, headers=UA)
@@ -64,7 +68,7 @@ def from_himalayas(query):
             "title": j["title"], "company": j["companyName"].strip(), "url": j.get("applicationLink") or j["guid"],
             "posted": datetime.fromtimestamp(int(j["pubDate"]), timezone.utc),
             "location": ", ".join(locs) or "Worldwide", "india_only": locs == ["India"],
-            "salary": salary(j.get("minSalary"), j.get("maxSalary"), j.get("currency") or "USD"),
+            **salary(j.get("minSalary"), j.get("maxSalary"), j.get("currency") or "USD"),
             "desc": text(j.get("description")), "source": "Himalayas",
         }
 
@@ -79,7 +83,7 @@ def from_remotive(query):
             "title": j["title"], "company": j["company_name"].strip(), "url": j["url"],
             "posted": datetime.fromisoformat(j["publication_date"]).replace(tzinfo=timezone.utc),
             "location": loc or "Worldwide", "india_only": loc.lower() == "india",
-            "salary": j.get("salary") or "", "desc": text(j.get("description")), "source": "Remotive",
+            "salary": j.get("salary") or "", "max_usd": None, "desc": text(j.get("description")), "source": "Remotive",
         }
 
 
@@ -92,17 +96,19 @@ def from_remoteok():
             "title": j["position"], "company": j["company"].strip(), "url": j.get("apply_url") or j["url"],
             "posted": datetime.fromisoformat(j["date"]), "location": loc or "Worldwide",
             "india_only": loc.lower() == "india",
-            "salary": salary(j.get("salary_min"), j.get("salary_max"), "USD"),
+            **salary(j.get("salary_min"), j.get("salary_max"), "USD"),
             "desc": text(j.get("description")) + " " + " ".join(j.get("tags") or []), "source": "RemoteOK",
         }
 
 
 def salary(lo, hi, cur):
-    lo, hi = int(lo or 0), int(hi or 0)
+    lo, hi = int(float(lo or 0)), int(float(hi or 0))
     if not (lo or hi):
-        return ""
+        return {"salary": "", "max_usd": None}
     k = lambda n: f"{n // 1000}k"  # noqa: E731
-    return f"{cur} {k(lo)}–{k(hi)}" if lo and hi else f"{cur} {k(lo or hi)}"
+    text_ = f"{cur} {k(lo)}–{k(hi)}" if lo and hi else f"{cur} {k(lo or hi)}"
+    rate = TO_USD.get(cur.upper())
+    return {"salary": text_, "max_usd": int(max(lo, hi) * rate) if rate else None}
 
 
 def score(job):
@@ -172,6 +178,8 @@ def main():
         if not WANT_TITLE.search(j["title"]) or SKIP_TITLE.search(j["title"]):
             continue
         if j["india_only"] and not args.include_india_only:
+            continue
+        if j["max_usd"] is not None and j["max_usd"] < FLOOR_USD:
             continue
         j["score"], j["gaps"], j["years"] = score(j)
         if j["score"] >= args.min_score:
