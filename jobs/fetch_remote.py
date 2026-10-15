@@ -23,7 +23,9 @@ import json
 import os
 import re
 import sys
+import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -49,11 +51,12 @@ WWR_FEEDS = ["remote-full-stack-programming-jobs", "remote-front-end-programming
 WANT_TITLE = re.compile(r"full[ -]?stack|front[ -]?end|react|next\.?js|node|javascript|typescript|software engineer|"
                         r"software developer|web developer|web engineer|product engineer|founding engineer|"
                         r"tech(nical)? lead|lead engineer|application engineer|ui engineer|backend engineer|back-end engineer|"
+                        r"platform engineer|golang|go developer|go engineer|nest\.?js|"
                         r"backend developer", re.I)
 SKIP_TITLE = re.compile(r"\.net|\bjava\b|php|ruby|rails|laravel|wordpress|shopify|salesforce|\bios\b|android|"
                         r"flutter|data scien|machine learning|ml engineer|devops|\bsre\b|\bqa\b|test|security|sales|"
                         r"marketing|support|intern\b|principal|staff|director|\bvp\b|head of|angular|\bvue|unity|"
-                        r"game|embedded|solidity|manager|c\+\+|golang|python|mobile|data engineer|analytics", re.I)
+                        r"game|embedded|solidity|manager|c\+\+|python|mobile|data engineer|analytics", re.I)
 
 WORLDWIDE = re.compile(r"anywhere|worldwide|world ?wide|global|international|all countries|"
                        r"^\s*(fully\s+|100% )?remote\s*$|^\s*home based\s*$|^\s*$", re.I)
@@ -80,9 +83,16 @@ DESC_RESTRICTED = re.compile(
 # Only explicit statements rescue a job; company slogans like "talent, not location" sit next to region rules.
 DESC_WORLDWIDE = re.compile(r"anywhere in the world|work from anywhere|from any country|any time ?zone", re.I)
 
-# Salary floor from preferences.md: Rs 20 LPA. Jobs listing a maximum below it are dropped; unlisted pay is kept.
-FLOOR_USD = 23_000
-TO_USD = {"USD": 1, "EUR": 1.08, "GBP": 1.27, "CAD": 0.73, "AUD": 0.66, "INR": 1 / 88}
+# Pay steps from preferences.md: Rs 40 LPA+ first, then Rs 15-40 LPA. Floor Rs 15 LPA; unlisted pay is kept.
+FLOOR_USD = 17_000
+STEP1_USD = 45_000
+TO_USD = {"USD": 1, "EUR": 1.08, "GBP": 1.27, "CAD": 0.73, "AUD": 0.66, "INR": 1 / 88, "AED": 0.272}
+
+
+def pay_step(max_usd):
+    if max_usd is None:
+        return "unlisted"
+    return "40+ LPA" if max_usd >= STEP1_USD else "15-40 LPA"
 
 
 def fetch(url, tries=2):
@@ -225,7 +235,45 @@ def from_smartrecruiters(slug):
             break
 
 
-BOARD_READERS = {"smartrecruiters": from_smartrecruiters, "ashby": from_ashby, "greenhouse": from_greenhouse, "lever": from_lever,
+WORKABLE_LOCK = threading.Lock()
+
+
+def workable_json(url):
+    """Workable answers bursts with HTTP 429, so its calls run one at a time with a pause and retries."""
+    for attempt in range(4):
+        with WORKABLE_LOCK:
+            time.sleep(1.5)
+            try:
+                return fetch_json(url)
+            except urllib.error.HTTPError as exc:
+                if exc.code != 429 or attempt == 3:
+                    raise
+        time.sleep(15 * (attempt + 1))
+
+
+def from_workable(slug):
+    d = workable_json(f"https://apply.workable.com/api/v1/widget/accounts/{slug}")
+    for j in d.get("jobs", []):
+        where = ", ".join(x for x in [j.get("city"), j.get("state"), j.get("country")] if x)
+        if j.get("telecommuting"):
+            where = (where + " / Remote").strip(" /")
+        if not (DUBAI.search(where) or WORLDWIDE.search(where) or j.get("telecommuting")):
+            continue
+        if not WANT_TITLE.search(j["title"]) or SKIP_TITLE.search(j["title"]):
+            continue
+        try:
+            detail = workable_json(f"https://apply.workable.com/api/v2/accounts/{slug}/jobs/{j['shortcode']}")
+            desc = text((detail.get("description") or "") + (detail.get("requirements") or ""))
+        except Exception:
+            desc = ""
+        posted = j.get("published_on") or j.get("created_at")
+        yield job(title=j["title"], company=d.get("name") or slug.title(),
+                  url=j.get("url") or f"https://apply.workable.com/{slug}/j/{j['shortcode']}/",
+                  posted=utc(datetime.fromisoformat(posted)), location=where or "Remote", desc=desc,
+                  source="Workable", ats="Workable", board=True)
+
+
+BOARD_READERS = {"workable": from_workable, "smartrecruiters": from_smartrecruiters, "ashby": from_ashby, "greenhouse": from_greenhouse, "lever": from_lever,
                  "recruitee": from_recruitee}
 
 
@@ -352,11 +400,12 @@ def already_seen():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--hours", type=float, default=6, help="only keep jobs posted within this many hours")
+    ap.add_argument("--hours", type=float, default=24,
+                    help="only keep jobs posted within this many hours (results list <=6h first, then <=24h)")
     ap.add_argument("--allow-apac", action="store_true", help="also accept APAC / Asia / India-remote roles")
     ap.add_argument("--no-dubai", action="store_true", help="leave out Dubai / UAE roles (included by default)")
     ap.add_argument("--min-match", type=int, default=50, help="minimum %% of the job's tech keywords he has")
-    ap.add_argument("--max-years", type=int, default=6, help="skip jobs asking for more years than this")
+    ap.add_argument("--max-years", type=int, default=99, help="skip jobs asking for more years (off by default)")
     args = ap.parse_args()
 
     jobs, errors = [], []
@@ -416,9 +465,14 @@ def main():
         if pct < args.min_match:
             drop("low keyword match")
             continue
-        j.update(match=pct, have=have, gaps=gaps, years=need, base=base_version(j["title"]))
+        age_h = (now - j["posted"]).total_seconds() / 3600
+        j.update(match=pct, have=have, gaps=gaps, years=need, base=base_version(j["title"]),
+                 pay=pay_step(j["max_usd"]), fresh="<=6h" if age_h <= 6 else "<=24h" if age_h <= 24 else f"{age_h / 24:.0f}d")
         picked.append(j)
-    picked.sort(key=lambda j: (-j["match"], -j["posted"].timestamp()))
+    # Order the user asked for: pay step first (40+ and unlisted, then 15-40), then freshness, then keyword match.
+    pay_rank = {"40+ LPA": 0, "unlisted": 0, "15-40 LPA": 1}
+    fresh_rank = {"<=6h": 0, "<=24h": 1}
+    picked.sort(key=lambda j: (pay_rank[j["pay"]], fresh_rank.get(j["fresh"], 2), -j["match"]))
 
     per_source = {}
     for j in jobs:
@@ -438,11 +492,11 @@ def main():
     md, js = out_dir / f"leads-{stamp}.md", out_dir / f"leads-{stamp}.json"
     lines = ["", f"## Run at {now:%H:%M} UTC: last {args.hours:g} hours, "
              f"{'worldwide + APAC' if args.allow_apac else 'worldwide only'}, no Indian companies", "",
-             "| Match | Posted (UTC) | Role | Company | Location | Salary | Gaps | Start from | Apply via | Link |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "| Pay step | Fresh | Match | Posted (UTC) | Role | Company | Location | Salary | Gaps | Start from | Apply via | Link |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for j in picked:
         gaps = ", ".join(j["gaps"][:5]) + (f", {j['years']}+ yrs" if j["years"] and j["years"] > 3 else "")
-        lines.append(f"| {j['match']}% | {j['posted']:%d %b %H:%M} | {j['title'].replace('|', '/')} | "
+        lines.append(f"| {j['pay']} | {j['fresh']} | {j['match']}% | {j['posted']:%d %b %H:%M} | {j['title'].replace('|', '/')} | "
                      f"{j['company']} | {j['region']}: {j['location'][:30]} | {j['salary']} | {gaps} | {j['base']} | "
                      f"{j.get('ats') or j['source']} | [{j['source']}]({j['url']}) |")
     head = "" if md.exists() else f"# Remote leads, {now:%d %b %Y}\n"
@@ -453,7 +507,7 @@ def main():
                              ensure_ascii=False), encoding="utf-8")
     print(f"{len(picked)} new leads -> {md}")
     for j in picked[:15]:
-        print(f"  {j['match']:>3}%  {j['posted']:%H:%M}  {j['company'][:22]:22} {j['title'][:55]:55} {j.get('ats') or j['source']}")
+        print(f"  {j['pay']:9} {j['fresh']:6} {j['match']:>3}%  {j['company'][:22]:22} {j['title'][:50]:50} {j['region'][:9]:9} {j.get('ats') or j['source']}")
 
 
 if __name__ == "__main__":
