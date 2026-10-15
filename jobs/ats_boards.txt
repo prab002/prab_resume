@@ -210,7 +210,11 @@ lever safe
 lever tinybird
 lever toptal
 lever zilliz
-recruitee tether
-recruitee holepunch
-recruitee bitfinex
-recruitee bunq
+# recruitee tether      (form needs a visible hCaptcha)
+# recruitee holepunch   (same Tether careers form, hCaptcha)
+# recruitee bitfinex    (same Tether careers form, hCaptcha)
+# recruitee bunq   (Recruitee forms need a visible hCaptcha)
+# recruitee namecheap   (Recruitee forms need a visible hCaptcha)
+# recruitee unifonic   (Recruitee forms need a visible hCaptcha)
+# recruitee spro   (Recruitee forms need a visible hCaptcha)
+# recruitee redsky   (Recruitee forms need a visible hCaptcha)

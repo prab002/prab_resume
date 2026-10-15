@@ -27,10 +27,14 @@ def from_board_url(url):
     import fetch_remote as fr
     from keywords import coverage
     m = re.search(r"(ashbyhq|greenhouse|lever)\.[a-z.]+/([^/?#]+)", url)
-    if not m:
+    r = re.search(r"https://([a-z0-9-]+)\.recruitee\.com/", url)
+    if m:
+        ats, slug = {"ashbyhq": "ashby", "greenhouse": "greenhouse", "lever": "lever"}[m.group(1)], m.group(2)
+    elif r:
+        ats, slug = "recruitee", r.group(1)
+    else:
         return None
-    ats = {"ashbyhq": "ashby", "greenhouse": "greenhouse", "lever": "lever"}[m.group(1)]
-    for j in fr.BOARD_READERS[ats](m.group(2)):
+    for j in fr.BOARD_READERS[ats](slug):
         if j["url"].rstrip("/") == url.rstrip("/").removesuffix("/application"):
             pct, have, gaps = coverage(j["title"] + "\n" + j["desc"], fr.candidate_corpus())
             return {**j, "posted": j["posted"].isoformat(), "match": pct, "have": have, "gaps": gaps}

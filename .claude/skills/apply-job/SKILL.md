@@ -33,6 +33,22 @@ is built by this repo's PDF builder, so it is a one-page ATS-readable PDF, not M
 3. **Never create accounts, solve CAPTCHAs or type passwords.** Ask the user to sign in and say "continue".
 4. Do not change job titles or dates. Keep the resume to one page.
 
+## Lessons from real applications (2026-10-15)
+
+- **One application per company.** ElevenLabs rejects a second application in the same area within 90 days;
+  other companies do the same. Check `DATA/job-history.md` for the company before tailoring.
+- **Read the posting for region rules, not just the location field.** "Remote" often hides "anywhere in Europe",
+  "US East Coast", "authorized to work in the US" or CET hours. Aggregator "Anywhere" labels were wrong for
+  Typeform and Vercel; the employer's own board is the truth.
+- **Forms that need the user are skipped**: Himalayas apply buttons (account), Recruitee forms including the
+  Tether group (visible hCaptcha), Workday (account). Ashby, Greenhouse and Lever have gone through unattended.
+- **Too senior**: titles like "Engineering Lead" that manage leads or report to a CTO are skipped.
+- Cookie banners: choose "necessary only". Consent checkboxes: tick only the required ones.
+- Phone fields often default to another country's code; set India, then type the full number and check it.
+- Salary in a local currency (e.g. PLN net per month): convert the USD 40–45k/yr target and say so in notes.
+- Questions about experience not in the profile (e.g. AI coding agents, using the company's product): say
+  plainly it is not there yet, or leave optional ones blank. Never invent it.
+
 ## Workflow
 
 ### 1. Pick the job
