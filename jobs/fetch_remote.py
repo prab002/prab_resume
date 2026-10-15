@@ -51,7 +51,8 @@ WWR_FEEDS = ["remote-full-stack-programming-jobs", "remote-front-end-programming
 WANT_TITLE = re.compile(r"full[ -]?stack|front[ -]?end|react|next\.?js|node|javascript|typescript|software engineer|"
                         r"software developer|web developer|web engineer|product engineer|founding engineer|"
                         r"tech(nical)? lead|lead engineer|application engineer|ui engineer|backend engineer|back-end engineer|"
-                        r"platform engineer|golang|go developer|go engineer|nest\.?js|"
+                        r"platform engineer|golang|go developer|go engineer|nest\.?js|\bsde\b|sde[- ]?(i|ii|iii|[123])\b|"
+                        r"software development engineer|member of technical staff|\bmts\b|"
                         r"backend developer", re.I)
 SKIP_TITLE = re.compile(r"\.net|\bjava\b|php|ruby|rails|laravel|wordpress|shopify|salesforce|\bios\b|android|"
                         r"flutter|data scien|machine learning|ml engineer|devops|\bsre\b|\bqa\b|test|security|sales|"
