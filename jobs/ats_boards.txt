@@ -218,3 +218,18 @@ lever zilliz
 # recruitee unifonic   (Recruitee forms need a visible hCaptcha)
 # recruitee spro   (Recruitee forms need a visible hCaptcha)
 # recruitee redsky   (Recruitee forms need a visible hCaptcha)
+
+# Dubai / UAE employers (on-site, hybrid or remote; added 2026-10-15)
+greenhouse careem
+greenhouse tamara
+ashby rain
+greenhouse bybit
+lever crypto
+greenhouse binance
+ashby ziina
+lever aldar
+ashby leantech
+lever deliverect
+smartrecruiters deliveryhero
+smartrecruiters namshi
+smartrecruiters yassir

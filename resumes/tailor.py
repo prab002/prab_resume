@@ -129,7 +129,12 @@ def keyword_report(out_dir, resume_text):
         return
     job_text = posting.read_text(encoding="utf-8")
     pct, on_resume, _ = coverage(job_text, resume_text)
-    _, true_kw, gaps = coverage(job_text, known_text())
+    # Keyword patterns are partly case-sensitive (e.g. "Go"), so compare against the original-case history.
+    raw = (ROOT / "content.py").read_text(encoding="utf-8")
+    profile = DATA / "profile.md"
+    if profile.exists():
+        raw += re.split(r"^## Open questions", profile.read_text(encoding="utf-8"), flags=re.M | re.I)[0]
+    _, true_kw, gaps = coverage(job_text, raw)
     missing_true = sorted(set(true_kw) - set(on_resume))
     print(f"Keyword match: {pct}% of the job's tech keywords are on this resume.")
     print(f"  On resume:              {', '.join(on_resume) or '-'}")

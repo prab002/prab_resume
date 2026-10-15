@@ -28,14 +28,19 @@ def from_board_url(url):
     from keywords import coverage
     m = re.search(r"(ashbyhq|greenhouse|lever)\.[a-z.]+/([^/?#]+)", url)
     r = re.search(r"https://([a-z0-9-]+)\.recruitee\.com/", url)
+    sr = re.search(r"smartrecruiters\.com/([^/]+)/(\d+)", url)
     if m:
         ats, slug = {"ashbyhq": "ashby", "greenhouse": "greenhouse", "lever": "lever"}[m.group(1)], m.group(2)
     elif r:
         ats, slug = "recruitee", r.group(1)
+    elif sr:
+        ats, slug = "smartrecruiters", sr.group(1).lower()
     else:
         return None
     for j in fr.BOARD_READERS[ats](slug):
-        if j["url"].rstrip("/") == url.rstrip("/").removesuffix("/application"):
+        same = (sr.group(2) in j["url"]) if sr else \
+            j["url"].rstrip("/") == url.rstrip("/").removesuffix("/application")
+        if same:
             pct, have, gaps = coverage(j["title"] + "\n" + j["desc"], fr.candidate_corpus())
             return {**j, "posted": j["posted"].isoformat(), "match": pct, "have": have, "gaps": gaps}
     return None

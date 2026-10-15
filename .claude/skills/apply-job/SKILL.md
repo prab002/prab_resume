@@ -42,6 +42,10 @@ is built by this repo's PDF builder, so it is a one-page ATS-readable PDF, not M
   Typeform and Vercel; the employer's own board is the truth.
 - **Forms that need the user are skipped**: Himalayas apply buttons (account), Recruitee forms including the
   Tether group (visible hCaptcha), Workday (account). Ashby, Greenhouse and Lever have gone through unattended.
+- **SmartRecruiters** "Easy apply" needs no account, but its resume field sits inside a shadow-DOM component the
+  upload tool cannot reach. Fill everything else, log it as Tailored with a note, and leave the tab for the user.
+- **Dubai / UAE roles** (on-site, hybrid or remote) are wanted: he will relocate with a visa. Use the Dubai salary
+  line (AED) from application-data.md, location "Bengaluru, India; open to relocating to Dubai", 60-day notice.
 - **Too senior**: titles like "Engineering Lead" that manage leads or report to a CTO are skipped.
 - Cookie banners: choose "necessary only". Consent checkboxes: tick only the required ones.
 - Phone fields often default to another country's code; set India, then type the full number and check it.

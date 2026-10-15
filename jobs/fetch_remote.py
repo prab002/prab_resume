@@ -48,7 +48,8 @@ WWR_FEEDS = ["remote-full-stack-programming-jobs", "remote-front-end-programming
 # Titles worth reading. Anything matching SKIP_TITLE is dropped even if it matches here.
 WANT_TITLE = re.compile(r"full[ -]?stack|front[ -]?end|react|next\.?js|node|javascript|typescript|software engineer|"
                         r"software developer|web developer|web engineer|product engineer|founding engineer|"
-                        r"tech(nical)? lead|lead engineer|application engineer|ui engineer", re.I)
+                        r"tech(nical)? lead|lead engineer|application engineer|ui engineer|backend engineer|back-end engineer|"
+                        r"backend developer", re.I)
 SKIP_TITLE = re.compile(r"\.net|\bjava\b|php|ruby|rails|laravel|wordpress|shopify|salesforce|\bios\b|android|"
                         r"flutter|data scien|machine learning|ml engineer|devops|\bsre\b|\bqa\b|test|security|sales|"
                         r"marketing|support|intern\b|principal|staff|director|\bvp\b|head of|angular|\bvue|unity|"
@@ -57,6 +58,8 @@ SKIP_TITLE = re.compile(r"\.net|\bjava\b|php|ruby|rails|laravel|wordpress|shopif
 WORLDWIDE = re.compile(r"anywhere|worldwide|world ?wide|global|international|all countries|"
                        r"^\s*(fully\s+|100% )?remote\s*$|^\s*home based\s*$|^\s*$", re.I)
 APAC = re.compile(r"\bapac\b|asia|india", re.I)
+# Dubai / UAE roles are wanted in any work mode (remote, hybrid or on-site): he will relocate with a visa.
+DUBAI = re.compile(r"dubai|united arab emirates|\buae\b|abu dhabi|sharjah", re.I)
 # Signs the employer itself is an Indian company (the user wants companies outside India).
 INDIAN_NAME = re.compile(r"pvt\.?|private limited|\bllp\b|india\b|technolog(y|ies) solutions", re.I)
 INDIAN_DESC = re.compile(r"pvt\.? ?ltd|private limited|headquartered in (india|bangalore|bengaluru|mumbai|pune|"
@@ -192,7 +195,37 @@ def from_recruitee(slug):
                   source="Recruitee", ats="Recruitee", board=True)
 
 
-BOARD_READERS = {"ashby": from_ashby, "greenhouse": from_greenhouse, "lever": from_lever,
+def from_smartrecruiters(slug):
+    base = f"https://api.smartrecruiters.com/v1/companies/{slug}/postings"
+    offset = 0
+    while offset < 1000:
+        page = fetch_json(f"{base}?limit=100&offset={offset}")
+        for j in page.get("content", []):
+            loc = j.get("location") or {}
+            where = ", ".join(x for x in [loc.get("city"), loc.get("country", "").upper()] if x)
+            if loc.get("remote"):
+                where = (where + " / Remote").strip(" /")
+            if not (DUBAI.search(where) or (loc.get("country") or "").lower() == "ae" or loc.get("fullyRemote")):
+                continue
+            if not WANT_TITLE.search(j["name"]) or SKIP_TITLE.search(j["name"]):
+                continue
+            detail = fetch_json(f"{base}/{j['id']}")
+            sections = (detail.get("jobAd") or {}).get("sections") or {}
+            desc = "\n".join(text((sections.get(k) or {}).get("text")) for k in
+                             ("companyDescription", "jobDescription", "qualifications", "additionalInformation"))
+            if (loc.get("country") or "").lower() == "ae" and "United Arab Emirates" not in where:
+                where += ", United Arab Emirates"
+            yield job(title=j["name"], company=(j.get("company") or {}).get("name") or slug.title(),
+                      url=detail.get("postingUrl") or f"https://jobs.smartrecruiters.com/{slug}/{j['id']}",
+                      posted=utc(datetime.fromisoformat(j["releasedDate"].replace("Z", "+00:00"))),
+                      location=where or "Remote", desc=desc, source="SmartRecruiters", ats="SmartRecruiters",
+                      board=True)
+        offset += 100
+        if offset >= page.get("totalFound", 0):
+            break
+
+
+BOARD_READERS = {"smartrecruiters": from_smartrecruiters, "ashby": from_ashby, "greenhouse": from_greenhouse, "lever": from_lever,
                  "recruitee": from_recruitee}
 
 
@@ -276,6 +309,10 @@ def location_ok(loc, allow_apac):
     return any(WORLDWIDE.search(p) or (allow_apac and APAC.search(p)) for p in parts)
 
 
+def in_dubai(loc):
+    return bool(DUBAI.search(loc or ""))
+
+
 def indian_company(j):
     return bool(INDIAN_NAME.search(j["company"]) or INDIAN_DESC.search(j["desc"][:6000])
                 or (j["salary"] or "").upper().startswith("INR"))
@@ -317,6 +354,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--hours", type=float, default=6, help="only keep jobs posted within this many hours")
     ap.add_argument("--allow-apac", action="store_true", help="also accept APAC / Asia / India-remote roles")
+    ap.add_argument("--no-dubai", action="store_true", help="leave out Dubai / UAE roles (included by default)")
     ap.add_argument("--min-match", type=int, default=50, help="minimum %% of the job's tech keywords he has")
     ap.add_argument("--max-years", type=int, default=6, help="skip jobs asking for more years than this")
     args = ap.parse_args()
@@ -356,10 +394,12 @@ def main():
         if not WANT_TITLE.search(j["title"]) or SKIP_TITLE.search(j["title"]):
             drop("title")
             continue
-        if not location_ok(j["location"], args.allow_apac):
-            drop("not worldwide")
+        dubai = not args.no_dubai and in_dubai(j["location"])
+        j["region"] = "Dubai/UAE" if dubai else "Worldwide"
+        if not dubai and not location_ok(j["location"], args.allow_apac):
+            drop("not worldwide or Dubai")
             continue
-        if DESC_RESTRICTED.search(j["desc"]) and not DESC_WORLDWIDE.search(j["desc"]):
+        if not dubai and DESC_RESTRICTED.search(j["desc"]) and not DESC_WORLDWIDE.search(j["desc"]):
             drop("region rule in description")
             continue
         if indian_company(j):
@@ -403,7 +443,7 @@ def main():
     for j in picked:
         gaps = ", ".join(j["gaps"][:5]) + (f", {j['years']}+ yrs" if j["years"] and j["years"] > 3 else "")
         lines.append(f"| {j['match']}% | {j['posted']:%d %b %H:%M} | {j['title'].replace('|', '/')} | "
-                     f"{j['company']} | {j['location'][:35]} | {j['salary']} | {gaps} | {j['base']} | "
+                     f"{j['company']} | {j['region']}: {j['location'][:30]} | {j['salary']} | {gaps} | {j['base']} | "
                      f"{j.get('ats') or j['source']} | [{j['source']}]({j['url']}) |")
     head = "" if md.exists() else f"# Remote leads, {now:%d %b %Y}\n"
     md.write_text((md.read_text(encoding="utf-8") if md.exists() else head) + "\n".join(lines) + "\n",
