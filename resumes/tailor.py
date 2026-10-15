@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -23,7 +24,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 import build  # noqa: E402
 from content import VERSIONS  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).parent.parent / "jobs"))
+from keywords import coverage  # noqa: E402
+
 ROOT = Path(__file__).parent
+REPO = ROOT.parent
 # Private job-search data lives outside this public repo (override with PROFICIENTLY_DIR).
 DATA = Path(os.environ.get("PROFICIENTLY_DIR", Path.home() / ".proficiently"))
 REQUIRED = ["slug", "role", "headline", "location", "summary", "skills", "webknot", "lead", "junior",
@@ -107,6 +112,29 @@ def main():
     print(f"{final}: {pages} page(s) at {font_pt}pt")
     if pages > 1:
         print("Warning: still over one page at the smallest size. Cut a bullet and rebuild.")
+
+    # Browser upload tools can only read inside the repo, so stage a copy in the git-ignored .proficiently/.
+    staged = REPO / ".proficiently" / "upload" / out_dir.name / final.name
+    staged.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(final, staged)
+    print(f"Upload copy: {staged}")
+    keyword_report(out_dir, build.render_md(v))
+
+
+def keyword_report(out_dir, resume_text):
+    """Compare the job's tech keywords with the resume and with everything he can truthfully claim."""
+    posting = out_dir / "posting-full.txt"
+    if not posting.exists():
+        print("No posting-full.txt next to the JSON, so no keyword report.")
+        return
+    job_text = posting.read_text(encoding="utf-8")
+    pct, on_resume, _ = coverage(job_text, resume_text)
+    _, true_kw, gaps = coverage(job_text, known_text())
+    missing_true = sorted(set(true_kw) - set(on_resume))
+    print(f"Keyword match: {pct}% of the job's tech keywords are on this resume.")
+    print(f"  On resume:              {', '.join(on_resume) or '-'}")
+    print(f"  True but NOT on resume: {', '.join(missing_true) or '-'}   <- add these")
+    print(f"  Real gaps (never add):  {', '.join(gaps) or '-'}")
 
 
 if __name__ == "__main__":
